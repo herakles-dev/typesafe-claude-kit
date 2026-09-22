@@ -1,0 +1,18 @@
+# Upstream TypeSafe docs, fetched locally by scripts/fetch-docs.sh.
+# Not redistributed by this repository.
+/reference/
+/llms.txt
+/llms-full.txt
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local spend log written by the client
+*.usage.jsonl

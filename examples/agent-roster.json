@@ -1,0 +1,54 @@
+{
+  "agents": {
+    "backend-architect": {
+      "description": "Designs HTTP/gRPC service boundaries, request validation, and persistence layers; reviews server code for concurrency and error-handling defects.",
+      "category": "engineering",
+      "status": "active"
+    },
+    "frontend-specialist": {
+      "description": "Builds browser UIs with component frameworks: routing, client state, accessibility, and bundle/runtime performance.",
+      "category": "engineering",
+      "status": "active"
+    },
+    "database-engineer": {
+      "description": "Database schema design, migrations, and query optimization for PostgreSQL, MongoDB, and Redis.",
+      "category": "engineering",
+      "status": "active"
+    },
+    "security-reviewer": {
+      "description": "Security review of pending changes: OWASP Top 10, auth flows, input validation, and dependency risk.",
+      "category": "security",
+      "status": "active"
+    },
+    "docs-writer": {
+      "description": "Technical documentation: READMEs, API references, changelogs, and architecture diagrams.",
+      "category": "docs",
+      "status": "active"
+    },
+    "test-engineer": {
+      "description": "Unit, integration, and end-to-end tests; coverage strategy and TDD workflows.",
+      "category": "quality",
+      "status": "active"
+    },
+    "data-analyst": {
+      "description": "Statistical analysis of application and business data: regression, hypothesis testing, anomaly detection.",
+      "category": "data",
+      "status": "active"
+    },
+    "contracts-negotiator": {
+      "description": "Pricing, scope, and contract-term negotiation for vendor and customer agreements.",
+      "category": "business",
+      "status": "active"
+    },
+    "sre-oncall": {
+      "description": "Incident response, SLOs, observability setup, runbooks, and reliability patterns.",
+      "category": "operations",
+      "status": "active"
+    },
+    "general-purpose": {
+      "description": "General-purpose agent for research, multi-step exploration, and tasks that don't need a specialist.",
+      "category": "general",
+      "status": "active"
+    }
+  }
+}

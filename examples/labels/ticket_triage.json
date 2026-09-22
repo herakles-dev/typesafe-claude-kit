@@ -1,0 +1,162 @@
+[
+  {
+    "id": "ticket-01",
+    "state": {"ticket": "The export-to-CSV button on the reports page does nothing when I click it. No error, no download, nothing. This is blocking our month-end close."},
+    "expected_team": "engineering",
+    "expected_severity": 2,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-02",
+    "state": {"ticket": "I was charged twice for my subscription this month ($49 on the 1st and again on the 3rd). Please refund the duplicate charge."},
+    "expected_team": "billing",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": true
+  },
+  {
+    "id": "ticket-03",
+    "state": {"ticket": "Just a heads up, the logo in the footer looks slightly blurry on retina displays. Not urgent at all."},
+    "expected_team": "engineering",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-04",
+    "state": {"ticket": "Like I said in my email last week, the dashboard still won't load past the loading spinner. I never heard back."},
+    "expected_team": "engineering",
+    "expected_severity": 2,
+    "expected_repeat_contact": true,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-05",
+    "state": {"ticket": "Can you tell me which plan includes API access? Your pricing page isn't clear about it."},
+    "expected_team": "other",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-06",
+    "state": {"ticket": "Invoice #4471 lists the wrong billing address. Can someone correct it and resend it for our records?"},
+    "expected_team": "billing",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-07",
+    "state": {"ticket": "The bulk-import feature crashes with a 500 error whenever the CSV has more than 10,000 rows. Steps: Settings > Import > upload attached file (12k rows) on Chrome 129 / macOS. Happens every time."},
+    "expected_team": "engineering",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-08",
+    "state": {"ticket": "This is the third time I'm writing about this. Nobody has processed my refund from two weeks ago. I want the $120 back now."},
+    "expected_team": "billing",
+    "expected_severity": 1,
+    "expected_repeat_contact": true,
+    "expected_refund_requested": true
+  },
+  {
+    "id": "ticket-09",
+    "state": {"ticket": "Every user in our workspace is locked out right now -- login just spins forever. This is a total outage for us, 40 people can't work."},
+    "expected_team": "engineering",
+    "expected_severity": 2,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-10",
+    "state": {"ticket": "Small thing: the date picker defaults to today's date instead of the last selected date. Minor annoyance, workaround is just clicking it again."},
+    "expected_team": "engineering",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-11",
+    "state": {"ticket": "We cancelled our plan on the 15th but were still billed on the 1st of this month. Please refund the charge and confirm the cancellation went through."},
+    "expected_team": "billing",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": true
+  },
+  {
+    "id": "ticket-12",
+    "state": {"ticket": "Do you offer a discount for annual billing versus monthly?"},
+    "expected_team": "other",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-13",
+    "state": {"ticket": "Following up again -- as I mentioned on Tuesday, the notification emails still aren't being sent when a task is assigned to me."},
+    "expected_team": "engineering",
+    "expected_severity": 1,
+    "expected_repeat_contact": true,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-14",
+    "state": {"ticket": "The mobile app won't let me scroll past the third item on the activity feed. Tried on both an iPhone 15 (iOS 18) and a Pixel 8 (Android 15); happens on both, every time I open the feed tab."},
+    "expected_team": "engineering",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-15",
+    "state": {"ticket": "We were double-invoiced for last quarter's usage overage. Please issue a credit for the duplicate line item."},
+    "expected_team": "billing",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": true
+  },
+  {
+    "id": "ticket-16",
+    "state": {"ticket": "How do I add a teammate to my workspace? I can't find the invite option anywhere."},
+    "expected_team": "other",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-17",
+    "state": {"ticket": "The whole app is down for everyone on our team -- every page just shows a blank white screen since about an hour ago."},
+    "expected_team": "engineering",
+    "expected_severity": 2,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-18",
+    "state": {"ticket": "Something's broken with search, it just doesn't work right."},
+    "expected_team": "engineering",
+    "expected_severity": 1,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  },
+  {
+    "id": "ticket-19",
+    "state": {"ticket": "I already asked about this refund on Monday and again on Wednesday, and I still haven't seen the money back in my account."},
+    "expected_team": "billing",
+    "expected_severity": 1,
+    "expected_repeat_contact": true,
+    "expected_refund_requested": true
+  },
+  {
+    "id": "ticket-20",
+    "state": {"ticket": "Feature request: it would be great if the calendar view supported dragging events between days. Not a bug, just a suggestion."},
+    "expected_team": "other",
+    "expected_severity": 0,
+    "expected_repeat_contact": false,
+    "expected_refund_requested": false
+  }
+]
