@@ -28,16 +28,27 @@ if [ "${#URLS[@]}" -eq 0 ]; then
 fi
 echo "fetch-docs: ${#URLS[@]} pages -> $DEST"
 
-# Each page carries a leading "Documentation Index" banner that only makes sense
-# for a crawler. Strip it (line 1 through the first blank line) so the local copy
-# starts at the page title.
+# Each page is served for a crawler, not a reader: a leading "Documentation
+# Index" banner, and embedded MDX components (`export function ...` blocks of
+# React/JavaScript that render interactive examples on the website). Neither
+# helps an agent reading the file, so strip both and collapse the blank-line
+# runs they leave behind. The page then starts at its title.
 fetch_one() {
   local url="$1" base="$2" dest="$3"
   local rel="${url#"$base"/}"
   local out="$dest/$rel"
   mkdir -p "$(dirname "$out")"
   if ! curl -fsSL "$url" \
-      | awk 'NR==1 && /^> ## Documentation Index/ {skip=1} skip && /^$/ {skip=0; next} !skip' \
+      | awk '
+          NR==1 && /^> ## Documentation Index/ { banner=1 }
+          banner && /^$/                        { banner=0; next }
+          banner                                { next }
+          /^export (function|const|default|class) / { blk=1; next }
+          blk && /^\}[;]?[[:space:]]*$/          { blk=0; next }
+          blk                                   { next }
+          /^[[:space:]]*$/                      { if (printed) pend=1; next }
+          { if (pend) print ""; pend=0; print; printed=1 }
+        ' \
       > "$out.tmp"; then
     rm -f "$out.tmp"
     echo "fetch-docs: FAILED $url" >&2
