@@ -112,7 +112,7 @@ Pick by **what the answer means**, then by **what your code does with it**. The 
 ```json
 {"type": "choice",
  "instructions": "Which team should handle this?",
- "criteria": {"returns": "Exchanges, refunds, wrong or damaged items",
+ "criteria": {"returns": "Exchanges, wrong or damaged items",
               "shipping": "Delivery status, delays, lost packages",
               "billing": null}}
 ```

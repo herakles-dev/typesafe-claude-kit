@@ -69,7 +69,7 @@ MODELS_URL = "https://api.typesafe.ai/v1/models"
 DEFAULT_MODEL = "jev-1.13.0"
 
 MAX_CHOICE_OPTIONS = 255          # primitives/choice.md
-MIN_SCORE_LEVELS = 2              # api.md: "You must include at least two levels."
+MIN_SCORE_LEVELS = 2              # api.md: "A Score should have at least two levels; the API accepts up to 10."
 MAX_SCORE_LEVELS = 10             # primitives/score.md: "up to 10"
 TOTAL_TOKEN_BUDGET = 64_000       # models.md
 STATE_PLUS_QUESTION_BUDGET = 32_000
