@@ -65,7 +65,7 @@ in this repo"* and let the guild take it from there.
 │   └── questions/         # QuestionSet convention + 3 example sets
 ├── tools/                 # 5 quality/calibration tools, each usable standalone
 ├── knowledge/             # MASTERY.md + 3 cookbooks, distilled from docs.typesafe.ai
-├── examples/              # fixtures: agent-roster.json, labels/ticket_triage.json
+├── examples/              # fixtures + reddit_guide/ (a subreddit guide Jev picks, never writes)
 ├── tests/                 # live test suites + run_all.py aggregator
 ├── scripts/fetch-docs.sh  # mirrors docs.typesafe.ai into reference/ (gitignored)
 ├── .env.example
@@ -130,6 +130,13 @@ specialist that would otherwise answer the same question.
 | `tools/consistency_probe.py` | Are answers stable across repeats, or only look stable | `python3 tools/consistency_probe.py --set ticket_triage --inputs examples/labels/ticket_triage.json` |
 | `tools/question_health.py` | Does a question carry any information at all on these inputs | `python3 tools/question_health.py --set ticket_triage --inputs examples/labels/ticket_triage.json` |
 | `tools/confidence_accuracy_curve.py` | Where accuracy actually degrades, and what each cut costs | `python3 tools/confidence_accuracy_curve.py --set ticket_triage --labels examples/labels/ticket_triage.json --answer team --expected expected_team` |
+
+## Example: a guide written by a model that can't write
+
+[`examples/reddit_guide/`](examples/reddit_guide/) turns a subreddit's comments into a field
+guide without generating a word: code splits comments into sentences, Jev judges and picks,
+every line links back to the real comment. The reference run read 7,728 sentences from
+r/ClaudeCode in 118 seconds for $0.21 — [results](examples/reddit_guide/results/2026-09-24-ClaudeCode.md).
 
 ## Knowledge
 
