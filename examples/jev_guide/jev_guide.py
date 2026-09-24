@@ -1,39 +1,38 @@
 #!/usr/bin/env python3
-"""reddit_guide -- write a subreddit's field guide out of its own comments, without generating a word.
+"""jev_guide -- Jev writes its own manual out of what Reddit said about it, without writing a word.
 
-Jev cannot write. This script makes it write a guide anyway, by never asking it to:
+Jev cannot write. This script gets a guide to Jev out of it anyway, by never asking it to:
 
-  1. Code fetches the month's top posts and every comment under them (Reddit's public JSON).
+  1. Code searches Reddit for Jev threads and pulls every comment under them.
   2. Code splits the comments into sentences and drops the obvious non-candidates
      (questions, links, fragments).
-  3. Jev judges every sentence in one request each: is it actionable advice, does it stand
-     on its own, is it first-hand, and which topic is it about.
+  3. Jev judges every sentence in one request each: is it actionable advice for someone
+     building with Jev, does it stand on its own, is it first-hand, and which topic is it about.
   4. Code ranks candidates per topic from those judgments and keeps a small pool.
   5. Jev picks the best line from each pool with a Choice question -- twice, so every topic
-     gets a runner-up.
+     gets a runner-up. That includes the topic about what Jev is bad at.
 
 Every line in the output is a sentence a real person posted, linked to its comment. Nothing is
 summarized, so nothing can be made up. This is extraction by selection
 (`knowledge/cookbooks-extraction.md`): code finds the candidates, the model only chooses.
 
 What it does NOT tell you: whether Jev's taste is any good. The picks are unvalidated
-judgments. Read them -- that is the check -- and if you want numbers, label some sentences and
-run `tools/confidence_accuracy_curve.py` against them.
+judgments. Read them -- that is the check.
 
 CLI:
-    python3 examples/reddit_guide/reddit_guide.py --sub ClaudeCode
-    python3 examples/reddit_guide/reddit_guide.py --sub ClaudeCode --posts 25 --out guide.md
-    python3 examples/reddit_guide/reddit_guide.py --sub selfhosted --topics my_topics.json
+    python3 examples/jev_guide/jev_guide.py --out guide.md
+    python3 examples/jev_guide/jev_guide.py --subs LocalLLaMA --window week
+    python3 examples/jev_guide/jev_guide.py --search "gliner" --match gliner \\
+        --topics gliner_topics.json --audience "someone building with GLiNER" --title "The GLiNER guide"
 
 Fetching needs REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET (a free "script" app at
-https://www.reddit.com/prefs/apps) on most networks: Reddit now blocks anonymous JSON from
-cloud IPs. Without them the script tries the anonymous endpoint and says so if it is blocked.
+https://www.reddit.com/prefs/apps) on most networks: Reddit blocks anonymous JSON from cloud
+IPs. Without them the script tries the anonymous endpoint and says so if it is blocked.
 
-`--topics` is a JSON object of {id: description}. It must include "none". Descriptions are
-the Choice criteria, so write them as situations, not single words.
+`--topics` is a JSON object of {id: description}. It must include "none". Descriptions are the
+Choice criteria, so write them as situations, not single words.
 
-Reference run (r/ClaudeCode, top 100 of the month, 2026-09-24): 7,728 sentences scored in
-118 s at 16 workers for $0.21. The result is in `results/`.
+The reference run is in `results/`.
 """
 from __future__ import annotations
 
@@ -52,22 +51,27 @@ KIT = Path(os.environ.get("TYPESAFE_KIT", Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(KIT / "lib"))
 from typesafe_client import USD_PER_INPUT_TOKEN, TypeSafeClient, choice, noul  # noqa: E402
 
-USER_AGENT = "typesafe-claude-kit/reddit_guide (github.com/herakles-dev/typesafe-claude-kit)"
+USER_AGENT = "typesafe-claude-kit/jev_guide (github.com/herakles-dev/typesafe-claude-kit)"
 
+DEFAULT_SEARCH = "jev OR typesafe"
+DEFAULT_MATCH = r"\bjev\b|typesafe"  # search is fuzzy; code keeps only threads that say the word
+DEFAULT_SUBS = "ClaudeCode,ClaudeAI,LocalLLaMA,MachineLearning,accelerate,singularity"
+DEFAULT_AUDIENCE = "someone building software with Jev"
+DEFAULT_TITLE = "The Jev guide"
 DEFAULT_TOPICS = {
-    "claude_md": "CLAUDE.md, memory files, or standing project instructions",
-    "context": "managing context: compaction, clearing, long sessions, what Claude remembers",
-    "limits": "usage limits, cost, tokens, or choosing a model or plan",
-    "quality": "keeping Claude from breaking code: tests, reviews, verifying its work, git",
-    "agents": "subagents, parallel work, worktrees, or orchestrating several agents",
-    "safety": "permissions, hooks, dangerous commands, or security",
-    "prompting": "how to phrase requests, plan mode, or giving specs and examples",
-    "workflow": "a general daily habit for working with Claude Code",
-    "none": "not advice about using Claude Code",
+    "good_for": "what Jev is good at, or a use case where it worked",
+    "bad_at": "what Jev is bad at, gets wrong, or should not be used for",
+    "questions": "how to write questions for Jev: wording, options, criteria, or Score levels",
+    "confidence": "trusting Jev's probabilities or confidence: calibration, thresholds, checking it",
+    "cost": "Jev's price, speed, batching, or rate limits",
+    "building": "wiring Jev into code, an agent, or Claude Code: the API, SDKs, or architecture",
+    "compare": "how Jev compares to LLMs, fine-tuned classifiers like BERT or GLiNER, or local models",
+    "none": "not advice about using Jev",
 }
 
 # Candidate filter. Deliberately code, not model: length and punctuation are lookups.
 MIN_CHARS, MAX_CHARS, MIN_WORDS = 50, 260, 8
+MIN_COMMENTS = 3        # threads with fewer comments rarely hold advice
 POOL_SIZE = 15          # candidates per topic handed to the final Choice
 MIN_TOPIC_CONF = 0.6    # below this, the topic label is a coin flip; leave the sentence out
 FIRSTHAND_BONUS = 0.15  # policy, not inference: prefer "I did X" over "you should X"
@@ -121,26 +125,36 @@ def _walk(children: list, out: list) -> None:
             _walk(replies["data"]["children"], out)
 
 
-def fetch(sub: str, posts: int, window: str, cache: Path) -> list[dict]:
-    """Top posts for the window plus their comment trees, cached on disk so re-runs are free."""
+def fetch(search: str, match: str, subs: list[str], window: str, cache: Path) -> list[dict]:
+    """Matching threads from each sub plus their comment trees, cached so re-runs are free."""
     cache.mkdir(parents=True, exist_ok=True)
-    path = cache / f"{sub}-{window}-{posts}.json"
+    key = re.sub(r"\W+", "_", f"{search}-{'_'.join(subs)}-{window}")[:120]
+    path = cache / f"{key}.json"
     if path.exists():
         return json.loads(path.read_text())
 
     session, base = _session()
-    listing = _get(session, f"{base}/r/{sub}/top", {"t": window, "limit": min(posts, 100)})
+    wanted = re.compile(match, re.I)
+    posts: dict[str, dict] = {}
+    for sub in subs:
+        listing = _get(session, f"{base}/r/{sub}/search",
+                       {"q": search, "restrict_sr": 1, "sort": "top", "t": window,
+                        "limit": 100, "type": "link"})
+        for child in listing["data"]["children"]:
+            p = child["data"]
+            if (p.get("num_comments", 0) >= MIN_COMMENTS
+                    and wanted.search(p["title"] + " " + (p.get("selftext") or ""))):
+                posts[p["id"]] = p
+        time.sleep(1)
+
     threads = []
-    for child in listing["data"]["children"][:posts]:
-        p = child["data"]
-        if p.get("num_comments", 0) < 5:
-            continue
+    for p in posts.values():
         tree = _get(session, f"{base}/comments/{p['id']}",
                     {"limit": 500, "depth": 4, "sort": "top"})
         comments: list[dict] = []
         _walk(tree[1]["data"]["children"], comments)
         threads.append({"id": p["id"], "title": p["title"], "score": p["score"],
-                        "permalink": "https://www.reddit.com" + p["permalink"],
+                        "sub": p["subreddit"], "permalink": "https://www.reddit.com" + p["permalink"],
                         "comments": comments})
         time.sleep(1)  # well inside Reddit's 100 requests/minute for OAuth clients
     path.write_text(json.dumps(threads))
@@ -164,18 +178,18 @@ def sentences(threads: list[dict]) -> list[dict]:
                     if (MIN_CHARS <= len(s) <= MAX_CHARS and not s.endswith("?")
                             and "http" not in s and len(s.split()) >= MIN_WORDS):
                         out.append({"s": s, "cid": c["id"], "cscore": c["score"],
-                                    "thread": t["title"], "link": f"{t['permalink']}{c['id']}/",
-                                    "tscore": t["score"]})
+                                    "thread": t["title"], "sub": t.get("sub", ""),
+                                    "link": f"{t['permalink']}{c['id']}/", "tscore": t["score"]})
     return out
 
 
 # --- judgments -----------------------------------------------------------------------------
 
-def sentence_questions(topics: dict) -> dict:
+def sentence_questions(topics: dict, audience: str) -> dict:
     return {
-        "tip": noul("This sentence gives specific, actionable advice that a Claude Code user "
-                    "could apply today, rather than an opinion, a joke, a complaint, or a vague "
-                    "statement."),
+        "tip": noul(f"This sentence gives specific, actionable advice or a warning that "
+                    f"{audience} could apply today, rather than an opinion, a joke, a "
+                    f"complaint, or a vague statement."),
         "standalone": noul("This sentence makes complete sense on its own, without the rest "
                            "of the comment or thread."),
         "firsthand": noul("The author is describing something they actually did themselves "
@@ -184,14 +198,15 @@ def sentence_questions(topics: dict) -> dict:
     }
 
 
-def score_all(client: TypeSafeClient, cands: list[dict], topics: dict, workers: int) -> tuple[list[dict], float]:
-    questions = sentence_questions(topics)
+def score_all(client: TypeSafeClient, cands: list[dict], topics: dict, audience: str,
+              workers: int) -> tuple[list[dict], float]:
+    questions = sentence_questions(topics, audience)
     spent = [0.0]
 
     def one(x: dict) -> dict:
         try:
             r = client.ask(state={"thread_title": x["thread"], "sentence": x["s"]},
-                           questions=questions, tag="reddit-guide")
+                           questions=questions, tag="jev-guide")
         except Exception as e:  # one bad call should not sink a 7,000-call run
             return {**x, "err": str(e)[:200]}
         spent[0] += r.cost_usd
@@ -204,9 +219,10 @@ def score_all(client: TypeSafeClient, cands: list[dict], topics: dict, workers: 
     return rows, spent[0]
 
 
-def pick(client: TypeSafeClient, rows: list[dict], topics: dict, per_topic: int) -> dict:
-    """Rank in code, choose with Jev. Weights live here so changing them needs no re-inference."""
-    picks = {}
+def pick(client: TypeSafeClient, rows: list[dict], topics: dict, audience: str,
+         per_topic: int) -> tuple[dict, float]:
+    """Rank in code, choose with Jev. The weights are constants, not words in a prompt."""
+    picks, spent = {}, 0.0
     for tid, desc in topics.items():
         if tid == "none":
             continue
@@ -220,42 +236,48 @@ def pick(client: TypeSafeClient, rows: list[dict], topics: dict, per_topic: int)
             if len(pool) == POOL_SIZE:
                 break
         chosen: list[dict] = []
+        taken: set[int] = set()
         for _ in range(per_topic):
-            opts = {f"s{i}": r["s"] for i, r in enumerate(pool) if r not in chosen}
+            opts = {f"s{i}": r["s"] for i, r in enumerate(pool) if i not in taken}
             if len(opts) < 2:
                 break
             res = client.ask(
-                state={"reader": "a developer who uses Claude Code every day"},
+                state={"reader": audience},
                 questions={"best": choice(f"Which sentence is the single most useful piece of "
                                           f"advice about {desc}?", opts)},
-                tag="reddit-guide-pick")
-            winner = pool[int(res.choice("best")[1:])]
-            chosen.append({**winner, "pick_conf": res.confidence("best")})
+                tag="jev-guide-pick")
+            spent += res.cost_usd
+            i = int(res.choice("best")[1:])
+            taken.add(i)
+            chosen.append({**pool[i], "pick_conf": res.confidence("best")})
         picks[tid] = chosen
-    return picks
+    return picks, spent
 
 
 # --- output --------------------------------------------------------------------------------
 
-def render(sub: str, picks: dict, topics: dict, rows: list[dict], seconds: float, cost: float) -> str:
+def render(title: str, picks: dict, topics: dict, rows: list[dict], threads: int,
+           seconds: float, cost: float) -> str:
     ok = [r for r in rows if "err" not in r]
     counts = {t: sum(r["topic"] == t for r in ok) for t in topics}
     kept = [p for ps in picks.values() for p in ps]
-    lines = [f"# r/{sub}, written by a model that can't write", "",
-             f"{len(ok):,} sentences judged in {seconds:.0f} s for ${cost:.2f}. "
-             f"Every line below is a real comment; Jev only chose.", ""]
+    lines = [f"# {title}, written by a model that can't write", "",
+             f"{len(ok):,} sentences from {threads} Reddit threads, judged in {seconds:.0f} s "
+             f"for ${cost:.2f}. Every line below is a real comment; Jev only chose.", ""]
     for tid, ps in picks.items():
         if not ps:
             continue
-        lines += [f"## {topics[tid]}", ""]
+        lines += [f"## {topics[tid][0].upper()}{topics[tid][1:]}", ""]
         for p in ps:
+            where = f"r/{p['sub']}, " if p.get("sub") else ""
             lines.append(f"> {p['s']}")
-            lines.append(f">\n> [{p['cscore']} upvotes, in a thread with {p['tscore']}]({p['link']})")
+            lines.append(f">\n> [{where}{p['cscore']} upvotes, in a thread with {p['tscore']}]({p['link']})")
             lines.append("")
     if kept:
+        thread_scores = {p["link"].rsplit("/", 2)[0]: p["tscore"] for p in kept}
         lines += ["## The numbers", "",
                   f"- Upvotes on the comments quoted above: {sum(p['cscore'] for p in kept)} total.",
-                  f"- Upvotes on the threads they came from: {sum({p['link'].rsplit('/', 2)[0]: p['tscore'] for p in kept}.values())} total.",
+                  f"- Upvotes on the threads they came from: {sum(thread_scores.values())} total.",
                   "- Sentences per topic: " + ", ".join(f"{t} {n}" for t, n in
                                                           sorted(counts.items(), key=lambda kv: -kv[1])),
                   "", "Topic labels and picks are Jev's unvalidated judgments.", ""]
@@ -264,10 +286,14 @@ def render(sub: str, picks: dict, topics: dict, rows: list[dict], seconds: float
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--sub", default="ClaudeCode")
-    ap.add_argument("--posts", type=int, default=100, help="top posts to read (max 100)")
+    ap.add_argument("--search", default=DEFAULT_SEARCH, help="Reddit search query")
+    ap.add_argument("--match", default=DEFAULT_MATCH,
+                    help="regex a thread's title or body must match (search results are fuzzy)")
+    ap.add_argument("--subs", default=DEFAULT_SUBS, help="comma-separated subreddits")
     ap.add_argument("--window", default="month", choices=["day", "week", "month", "year", "all"])
     ap.add_argument("--topics", help="JSON file of {id: description}; must include 'none'")
+    ap.add_argument("--audience", default=DEFAULT_AUDIENCE, help="who the advice is for")
+    ap.add_argument("--title", default=DEFAULT_TITLE)
     ap.add_argument("--per-topic", type=int, default=2)
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--cache", default=str(Path.home() / ".typesafe" / "reddit_cache"))
@@ -283,7 +309,8 @@ def main() -> int:
         sys.exit("--topics must include a 'none' option, or every sentence gets forced into a topic")
 
     threads = (json.loads(Path(args.threads).read_text()) if args.threads
-               else fetch(args.sub, args.posts, args.window, Path(args.cache)))
+               else fetch(args.search, args.match, [s.strip() for s in args.subs.split(",")],
+                          args.window, Path(args.cache)))
     cands = sentences(threads)
     est = len(cands) * 630 * USD_PER_INPUT_TOKEN  # ~630 input tokens per sentence call, measured
     print(f"{len(threads)} threads, {len(cands):,} candidate sentences, ~${est:.2f} estimated",
@@ -293,11 +320,11 @@ def main() -> int:
 
     client = TypeSafeClient()
     t0 = time.monotonic()
-    rows, cost = score_all(client, cands, topics, args.workers)
-    picks = pick(client, rows, topics, args.per_topic)
+    rows, cost = score_all(client, cands, topics, args.audience, args.workers)
+    picks, pick_cost = pick(client, rows, topics, args.audience, args.per_topic)
     seconds = time.monotonic() - t0
 
-    guide = render(args.sub, picks, topics, rows, seconds, cost)
+    guide = render(args.title, picks, topics, rows, len(threads), seconds, cost + pick_cost)
     if args.out:
         Path(args.out).write_text(guide)
     else:
@@ -305,7 +332,8 @@ def main() -> int:
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(rows))
     errs = sum("err" in r for r in rows)
-    print(f"done: {len(rows) - errs:,} scored, {errs} errors, {seconds:.0f} s, ${cost:.3f}", file=sys.stderr)
+    print(f"done: {len(rows) - errs:,} scored, {errs} errors, {seconds:.0f} s, "
+          f"${cost + pick_cost:.3f}", file=sys.stderr)
     return 0
 
 

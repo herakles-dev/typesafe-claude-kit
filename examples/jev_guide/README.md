@@ -1,20 +1,21 @@
-# reddit_guide — a subreddit's guide, written by a model that can't write
+# jev_guide — Jev's manual, written by Jev, out of what Reddit said about it
 
-Jev doesn't generate text. This example gets a guide out of it anyway: code splits every
-comment on a subreddit's top posts into sentences, Jev judges each one (is it real advice,
-does it stand alone, is it first-hand, what's it about), code ranks them, and Jev picks the
-best line per topic. Every line in the output is a sentence a real person posted, linked to
-the comment it came from. Nothing is summarized, so nothing can be made up.
+Jev doesn't generate text. This example gets a guide to Jev out of it anyway: code pulls every
+comment from the Reddit threads about Jev, splits them into sentences, Jev judges each one (is
+it real advice, does it stand alone, is it first-hand, what's it about), code ranks them, and
+Jev picks the best line per topic. That includes the topic on what Jev is bad at.
 
-The reference run is in [`results/2026-09-24-ClaudeCode.md`](results/2026-09-24-ClaudeCode.md):
-7,728 sentences from the month's top 100 r/ClaudeCode posts, judged in 118 seconds for $0.21.
+Every line in the output is a sentence a real person posted, linked to the comment it came
+from. Nothing is summarized, so nothing can be made up.
+
+The reference run is in [`results/`](results/).
 
 ## Run it
 
 ```bash
 export REDDIT_CLIENT_ID=...       # free "script" app: https://www.reddit.com/prefs/apps
 export REDDIT_CLIENT_SECRET=...
-python3 examples/reddit_guide/reddit_guide.py --sub ClaudeCode --out guide.md
+python3 examples/jev_guide/jev_guide.py --out guide.md
 ```
 
 Reddit blocks anonymous JSON from most cloud IPs, so set the two variables unless you're on a
@@ -22,37 +23,31 @@ home connection. `TYPESAFE_API_KEY` comes from the kit's `.env` as usual.
 
 | Flag | Default | |
 |---|---|---|
-| `--sub` | `ClaudeCode` | any subreddit |
-| `--posts` | `100` | top posts to read (max 100) |
+| `--subs` | `ClaudeCode,ClaudeAI,LocalLLaMA,MachineLearning,accelerate,singularity` | where to look |
 | `--window` | `month` | `day` `week` `month` `year` `all` |
-| `--topics` | Claude Code topics | JSON `{id: description}`, must include `none` |
+| `--search` / `--match` | `jev OR typesafe` / `\bjev\b\|typesafe` | Reddit's search is fuzzy, so code keeps only threads that say the word |
+| `--topics` | Jev topics | JSON `{id: description}`, must include `none` |
+| `--audience` | someone building software with Jev | who the advice is for |
 | `--per-topic` | `2` | lines picked per topic |
 | `--threads` | | skip fetching, use a saved dump (any cache file works) |
 | `--json-out` | | every scored sentence, for your own analysis |
 | `--yes` | | skip the confirmation above $0.05 |
 
 Fetched threads are cached in `~/.typesafe/reddit_cache/`, so re-running with different topics
-or weights costs only the Jev calls.
+costs only the Jev calls.
 
-## Point it at another subreddit
+## Point it at something else
 
-The default topics are about Claude Code. For anything else, write your own:
-
-```json
-{
-  "hardware": "choosing, buying, or configuring hardware",
-  "networking": "reverse proxies, DNS, VPNs, or exposing services safely",
-  "backups": "backup strategy, restore testing, or data loss",
-  "none": "not advice about self-hosting"
-}
-```
+Nothing in the pipeline is Jev-specific except the defaults. A guide to any tool:
 
 ```bash
-python3 examples/reddit_guide/reddit_guide.py --sub selfhosted --topics selfhosted.json
+python3 examples/jev_guide/jev_guide.py --search "gliner" --match gliner \
+  --subs LocalLLaMA,MachineLearning --topics gliner_topics.json \
+  --audience "someone building with GLiNER" --title "The GLiNER guide"
 ```
 
 Topic descriptions are the Choice criteria Jev reads, so describe situations, not single
-words (`knowledge/MASTERY.md` has the reasoning).
+words (`knowledge/MASTERY.md` has the reasoning), and always include a `none` option.
 
 ## What it shows
 
