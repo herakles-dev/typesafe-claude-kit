@@ -10,6 +10,48 @@ This is not the TypeSafe SDK. The SDK lives upstream at
 kit is the Claude Code layer on top: a guild of subagents, a skill, a thin client, worked
 QuestionSets, and the tools that make thresholds measured instead of invented.
 
+## The short version
+
+Claude is the friend who writes, plans, and reasons. Jev is a fast, cheap referee that only
+answers multiple-choice questions — and tells you how sure it is.
+
+Hand it a support ticket and a form: *which team? how severe? are they asking for a refund?*
+It ticks the boxes and attaches a probability to each (`team="billing"`, `refund=0.97`). It
+never writes a sentence back, so there is nothing to parse.
+
+It has three kinds of question:
+
+| Primitive | Asks | Returns |
+|---|---|---|
+| **Choice** | Which one of these? | the winning option + a probability per option |
+| **Score** | Where on this scale? | one of 2–10 levels *you describe in words* |
+| **Noul** | Is this true? | a single probability, 0 to 1 |
+
+Your code stays the boss. Jev judges; code decides:
+
+```python
+if result.noul("refund_requested") > 0.9 and result.choice("team") == "billing":
+    auto_route_to_billing()
+else:
+    ask_a_human()
+```
+
+The probabilities are calibrated: across many calls, the "90% sure" answers are right about
+90% of the time. That makes thresholds meaningful, but it does not make any single answer
+correct, so scale the bar with the risk of the action. The calibrator agent and
+`tools/confidence_accuracy_curve.py` exist to measure that bar instead of guessing it.
+
+**Why bother:** $0.042 per million input tokens, output free, ~300–600ms per call — and many
+questions batch into one call (about 11× cheaper than asking them separately).
+
+**Never send it:** arithmetic, counting, date comparison, text generation, multi-hop
+"the thing that the thing points to" reasoning, or huge padded state. These are documented
+failure modes, not edge cases. A lookup belongs in code, prose belongs to Claude, choosing
+the next step in a loop belongs to an agent — Jev is for the judgment calls in between.
+
+**Where to start in Claude Code:** after setup, say *"use typesafe-scout to find where Jev fits
+in this repo"* and let the guild take it from there.
+
 ## What's inside
 
 ```
